@@ -1,0 +1,185 @@
+Low level. At this level, you have the most freedom and access to all the low-level components such as ChatLanguageModel, UserMessage, AiMessage, EmbeddingStore, Embedding, etc. These are the "primitives" of your LLM-powered application. You have complete control over how to combine them, but you will need to write more glue code.
+High level. At this level, you interact with LLMs using high-level APIs like AI Services, which hides all the complexity and boilerplate from you. You still have the flexibility to adjust and fine-tune the behavior, but it is done in a declarative manner.
+
+
+ChatRequest request = ChatRequest.builder()
+    .messages(UserMessage.from())
+    .parameters(ChatRequestParameters.builder()
+        .temperature(0.5)
+        .toolSpecifications(toolSpecifications)
+        .build())
+    .build();
+
+if you wish to customize the request (e.g., specify the temperature, tools or JSON schema, etc.),
+you can use the chat(ChatRequest) method
+
+
+UserMessage can contain not only text, but other types of content as well. UserMessage contains a List<Content> contents. Content is an interface and has the following implementations:
+
+TextContent
+ImageContent
+AudioContent
+VideoContent
+PdfFileContent
+
+Text Content
+TextContent is the simplest form of Content that represents plain text and wraps a single String. UserMessage.from(TextContent.from("Hello!")) is equivalent to UserMessage.from("Hello!").
+
+One can provide one or multiple TextContents inside the UserMessage:
+
+UserMessage userMessage = UserMessage.from(
+    TextContent.from("Hello!"),
+    TextContent.from("How are you?")
+);
+
+Image Content
+Depending on the LLM provider, ImageContent can be created either from the URL of the remote image (see an example above), or from the Base64-encoded binary data:
+
+byte[] imageBytes = readBytes("/home/me/cat.jpg");
+String base64Data = Base64.getEncoder().encodeToString(imageBytes);
+ImageContent imageContent = ImageContent.from(base64Data, "image/jpg");
+UserMessage userMessage = UserMessage.from(imageContent);
+
+One can also specify DetailLevel enum (with LOW/HIGH/AUTO options) to control how the model processes the image. See more details here.
+
+
+
+
+
+
+
+
+/*
+    SCREW THIS I CANNOT DEAL WITH THESE ISSUES IM DONE.
+    Working at this level is very flexible and gives you total freedom,
+    but it also forces you to write a lot of boilerplate code.
+     Since LLM-powered applications usually require not just a single component but multiple components working
+     together (e.g., prompt templates, chat memory, LLMs, output parsers, RAG components: embedding models and stores)
+      and often involve multiple interactions, orchestrating them all becomes even more cumbersome.
+LangChain4j creators want you to focus on business logic, not on low-level implementation details.
+ Thus, there are currently two high-level concepts in LangChain4j that can help with that: AI Services and Chains.
+
+==================================================================]
+
+ We will make use of Ai Services. This is Tailored only and ONLY for java by LangChain4j.
+ The idea is to hide the complexities of interacting with LLMs and other components behind a simple API.
+ AI Services handle the most common operations:
+
+Formatting inputs for the LLM
+Parsing outputs from the LLM
+They also support more advanced features:
+
+Chat memory
+Tools
+RAG
+One of th
+
+
+
+--------------------------------------------     My Chat Storage and Context Strategy pt2    ------------------------------------------------
+So from past experiences, we can say that I am not able to use Ollama and All the langchain's
+Our Possible plans:
+1. Save it into a text file or like keep appendng it to a list and pass that list everytime
+2. Maintain NO chat history
+3. Use the implements keyword and modify the Assistants interface.
+
+Lets go with 1
+
+we will maintain one list which i will keep appeneding chatMessage to.
+
+ */
+
+    private List<ChatMessage> history;
+
+    void messageListInit() {
+        this.history = new ArrayList<>();
+        /*
+        I thought of putting the System prompt as: Your Name is SuperPie. You are an AI bot based off on "+ModelName+". You are running in Ollama Inference and interacting via JAVAFX. Satya Paladugu helped making you by connecting the dots. Your Duty is to work with Humans and be as helpful as possible.
+        but its too long so im asking gemma itself to reduce it to a 30 Token long context.
+         */
+        history.add(new UserMessage("System: You are an AI bot Superpie, Based on " + ModelName + " running in Ollama, Assisting humans via javafx, created by Satya Paladugu and focus on helping humans"));
+    }
+
+    void messageAddHistory(UserMessage ME, UserMessage AI) {
+        history.add(ME);
+        history.add(AI);
+    }
+  /*
+        Ok so look. There is UserMessages and Ai MEssages. Consider these as a page of a book
+        All books and pages together we get a list of chatmessages. this is now stored in something called as chat memory
+        so chatmemory == list of chats == one book
+        now many of these books are stored in a library.
+        in our case, library is chatmemory store.
+
+                 NOTE: ALL THESE INFORMATIONE IS FROM THE OFFICIAL Langchain4j website
+
+
+                                        Memory vs History
+
+        Please note that "memory" and "history" are similar, yet distinct concepts.
+
+        History keeps all messages between the user and AI intact. History is what the user sees in the UI. It represents what was actually said.
+        Memory keeps some information, which is presented to the LLM to make it behave as if it "remembers" the conversation. Memory is quite different from history. Depending on the memory algorithm used, it can modify history in various ways: evict some messages, summarize multiple messages, summarize separate messages, remove unimportant details from messages, inject extra information (e.g., for RAG) or instructions (e.g., for structured outputs) into messages, and so on.
+        LangChain4j currently offers only "memory", not "history". If you need to keep an entire history, please do so manually.
+        Eviction policy
+        An eviction policy is necessary for several reasons:
+
+        To fit within the LLM's context window. There is a cap on the number of tokens LLM can process at once. At some point, conversation might exceed this limit. In such cases, some message(s) should be evicted. Usually, the oldest message(s) are evicted, but more sophisticated algorithms can be implemented if needed.
+        To control the cost. Each token has a cost, making each call to the LLM progressively more expensive. Evicting unnecessary messages reduces the cost.
+        To control the latency. The more tokens are sent to the LLM, the more time it takes to process them.
+        Currently, LangChain4j offers 2 out-of-the-box implementations:
+
+        The simpler one, MessageWindowChatMemory, functions as a sliding window, retaining the N most recent messages and evicting older ones that no longer fit. However, because each message can contain a varying number of tokens, MessageWindowChatMemory is mostly useful for fast prototyping.
+        A more sophisticated option is the TokenWindowChatMemory, which also operates as a sliding window but focuses on keeping the N most recent tokens, evicting older messages as needed. Messages are indivisible. If a message doesn't fit, it is evicted completely. TokenWindowChatMemory requires a Tokenizer to count the tokens in each ChatMessage
+
+          1. ChatMessage — the parent class
+        What it is: An abstract base class for any message in the chat — user or AI.
+        Think of it like a generic Message, and from it we get:
+        UserMessage → represents a human message
+        AiMessage → represents a response from the AI
+
+        2. ChatMemory — holds the full conversation
+        This is like a history manager — it remembers every message in order.
+        It stores a list of ChatMessage objects: both user & AI messages.
+        Used to simulate context in multi-turn conversations (like chat history).
+
+        3. ChatMessageStore — persistence for memory
+        Think of this like a database or file system for ChatMemory.
+        By default, ChatMemory.inMemory() is volatile (lost on app restart).
+        But ChatMessageStore lets you save/load chat history.
+        You can implement your own (store in SQL, Redis, File, etc.)
+
+         4. UserMessage & AiMessage — your actual messages
+        These are concrete implementations of ChatMessage.
+        You send UserMessage into the model.
+        You receive AiMessage as response.
+
+        5. ChatRequest — what you send to the LLM
+        ChatRequest wraps everything needed for generation:
+        Your UserMessage (latest message)
+        The memory/context (optional but important)
+        Temperature, system prompt, tools etc.
+
+        6. ChatResponse — what you get back
+        It contains:
+        The model’s reply (AiMessage)
+        Token usage
+        Finish reason
+        Optional metadata
+
+      1.ChatMemory
+        It stores the entire conversation history that should be remembered by the model. For this, to make use of ChatMemory, make a class for ChatMemory.
+        There are types:
+        MessageWindowChatMemory: Keeps last N messages
+        TokenWindowChatMemory: Keeps last N tokens worth of messages (best for models)
+        We will use TokenWindowChatMemory. For this we need a Tokenizer to count the tokens in each ChatMessage.
+
+
+        2.ChatMemoryStore
+        This is how the memory is stored (like in a file, database, or in memory).
+        LangChain4j has:
+        InMemoryChatMessageStore (default)
+        You can make your own like FileChatMessageStore,
+        We can also assign like IDs to store contexts and all.
+
+        */

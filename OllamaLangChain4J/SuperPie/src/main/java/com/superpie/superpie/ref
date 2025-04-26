@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.TextFlow?>
+
+<BorderPane fx:id="rootPane" prefHeight="600.0" prefWidth="800.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.superpie.superpie.ChatController">
+   <center>
+      <ScrollPane fx:id="scrollPane" fitToWidth="true" hbarPolicy="NEVER" vbarPolicy="ALWAYS" BorderPane.alignment="CENTER">
+         <content>
+            <VBox fx:id="chatArea" spacing="5.0" styleClass="chat-area">
+               <padding>
+                  <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+               </padding>
+            </VBox>
+         </content>
+      </ScrollPane>
+   </center>
+   <bottom>
+      <HBox alignment="CENTER_LEFT" spacing="10.0" BorderPane.alignment="CENTER">
+         <children>
+            <TextField fx:id="inputField" HBox.hgrow="ALWAYS" promptText="Type your message here..." onAction="#handleSendAction" />
+            <Button fx:id="sendButton" mnemonicParsing="false" onAction="#handleSendAction" text="Send" />
+         </children>
+         <padding>
+            <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+         </padding>
+      </HBox>
+   </bottom>
+   <top>
+      <HBox alignment="CENTER_RIGHT" spacing="10.0" BorderPane.alignment="CENTER_RIGHT">
+         <children>
+            <ToggleButton fx:id="themeToggle" mnemonicParsing="false" onAction="#toggleTheme" text="Toggle Dark Mode" />
+         </children>
+         <padding>
+            <Insets bottom="5.0" left="10.0" right="10.0" top="5.0" />
+         </padding>
+      </HBox>
+   </top>
+</BorderPane>
+
+
+package com.superpie.superpie;
+
+import javafx.application.Platform;
+import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleButton;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
+
+import java.util.Objects;
+
+public class ChatController {
+
+    @FXML
+    private BorderPane rootPane;
+    @FXML
+    private VBox chatArea;
+    @FXML
+    private TextField inputField;
+    @FXML
+    private Button sendButton;
+    @FXML
+    private ScrollPane scrollPane;
+    @FXML
+    private ToggleButton themeToggle;
+
+    private boolean isDarkMode = false;
+    private final String lightThemePath = Objects.requireNonNull(getClass().getResource("/com/superpie/superpie/light-theme.css")).toExternalForm();
+    private final String darkThemePath = Objects.requireNonNull(getClass().getResource("/com/superpie/superpie/dark-theme.css")).toExternalForm();
+
+    @FXML
+    public void initialize() {
+        // Auto-scroll to the bottom
+        chatArea.heightProperty().addListener((obs, oldVal, newVal) -> scrollPane.setVvalue(1.0));
+        // Apply initial theme
+        applyTheme(lightThemePath);
+        themeToggle.setText("Toggle Dark Mode");
+    }
+
+    @FXML
+    private void handleSendAction() {
+        String message = inputField.getText();
+        if (!message.trim().isEmpty()) {
+            displayMessage("You", message);
+            // TODO: Send message to LLM and display response
+            // displayMessage("LLM", "This is a placeholder response.");
+            inputField.clear();
+        }
+    }
+
+    private void displayMessage(String sender, String message) {
+        TextFlow messageFlow = new TextFlow();
+        Text senderText = new Text(sender + ": ");
+        senderText.getStyleClass().add("sender-text"); // Add style class for sender
+        Text messageText = new Text(message);
+        messageText.getStyleClass().add("message-text"); // Add style class for message
+
+        messageFlow.getChildren().addAll(senderText, messageText);
+        messageFlow.getStyleClass().add("message-bubble"); // Style the whole bubble
+        if (sender.equals("You")) {
+            messageFlow.getStyleClass().add("user-message"); // Specific style for user
+        } else {
+            messageFlow.getStyleClass().add("llm-message"); // Specific style for LLM
+        }
+
+        // Add padding/margin if needed via CSS or here
+        VBox.setMargin(messageFlow, new javafx.geometry.Insets(5, 0, 5, 0));
+
+        chatArea.getChildren().add(messageFlow);
+
+        // Ensure the scroll pane updates and scrolls down
+        Platform.runLater(() -> scrollPane.setVvalue(1.0));
+    }
+
+
+    @FXML
+    private void toggleTheme() {
+        isDarkMode = !isDarkMode;
+        if (isDarkMode) {
+            applyTheme(darkThemePath);
+            themeToggle.setText("Toggle Light Mode");
+        } else {
+            applyTheme(lightThemePath);
+            themeToggle.setText("Toggle Dark Mode");
+        }
+    }
+
+    private void applyTheme(String cssPath) {
+        rootPane.getStylesheets().clear();
+        rootPane.getStylesheets().add(cssPath);
+        System.out.println("Applied theme: " + cssPath); // Debugging
+    }
+}
