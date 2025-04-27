@@ -1,4 +1,6 @@
 package com.superpie.superpie.back;
+import com.google.common.reflect.TypeToken;
+import com.google.gson.Gson;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
@@ -6,6 +8,7 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import java.io.*;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
 import static dev.langchain4j.data.message.ChatMessageDeserializer.messagesFromJson;
@@ -106,7 +109,7 @@ public class Ollama4JwCLI33 {
 //        runOllamaCommand(false,ModelName);
         this.model = OllamaChatModel.builder().baseUrl("http://localhost:11434")
                 // OLLAMA ALWAYS HAS BASE URL AS 11434
-                .modelName("gemma3:1b")
+                .modelName("gemma3:4b")
                 .responseFormat(ResponseFormatJSON(WantInJSON))
                 .temperature(Temp)
                 // .maxTokens()
@@ -200,7 +203,7 @@ public class Ollama4JwCLI33 {
 
     public void InitMemory(String memoryId) {
 
-             Store = new SuperPiePersistentMemoryStore();
+             Store =new SuperPiePersistentMemoryStore();
 //            Store = new SuperPieChatBunkerr();
 
 
@@ -211,11 +214,11 @@ public class Ollama4JwCLI33 {
                 .build();
         Memory.add(SystemMessage.from("Your name is SuperPie. A chatbot designed by satya paladugu, using Ollama inferencing, via langchain4j on javafx. You are supposed to do what the user asked completely."));
 
-    }
 
-    public void Quit(){
-        SuperPiePersistentMemoryStore.exit();
     }
+//    public void Quit(){
+//        SuperPiePersistentMemoryStore.exit();
+//    }
 
     public static void main(String[] args) throws IOException {
         boolean WhileLoop = true;
@@ -251,35 +254,79 @@ public class Ollama4JwCLI33 {
             }
             System.out.println("--------------------------------------------------------------------------------------------");
         }
-            O.Quit();
+
 
 
     }
 }
+class SuperpieFileStore implements ChatMemoryStore {
 
-class SuperPiePersistentMemoryStore implements ChatMemoryStore {
-    private static final DB db = DBMaker.fileDB("chat-memory.db").transactionEnable().make();
-    private final Map<String, String> map = db.hashMap("messages", STRING, STRING).createOrOpen();
+    private final File file;
+    private final Gson gson = new Gson();
+
+    public SuperpieFileStore(Object filename) {
+        this.file = new File(String.valueOf(filename));
+    }
 
     @Override
     public List<ChatMessage> getMessages(Object memoryId) {
-        String json = map.get((String) memoryId);
-        return messagesFromJson(json);
+        try {
+            if (!file.exists()) return new ArrayList<>();
+            String json = Files.readString(file.toPath());
+            List<ChatMessage> messages = gson.fromJson(json, new TypeToken<List<ChatMessage>>() {}.getType());
+            return messages != null ? messages : new ArrayList<>();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load messages: " + e.getMessage(), e);
+        }
+    }
+
+
+    public void putMessages(Object memoryId, List<ChatMessage> messages) {
+        try {
+            String json = gson.toJson(messages);
+            Files.writeString(file.toPath(), json);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to save messages: " + e.getMessage(), e);
+        }
     }
 
     @Override
     public void updateMessages(Object memoryId, List<ChatMessage> messages) {
-        String json = messagesToJson(messages);
-        map.put((String) memoryId, json);
-        db.commit();
+        putMessages(memoryId, messages); // just overwrite for now
     }
 
     @Override
     public void deleteMessages(Object memoryId) {
-        map.remove((String) memoryId);
-        db.commit();
-    }
-    public static void exit(){
-        db.close();
+        try {
+            Files.deleteIfExists(file.toPath());
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to delete messages: " + e.getMessage(), e);
+        }
     }
 }
+    class SuperPiePersistentMemoryStore implements ChatMemoryStore {
+        private static final DB db = DBMaker.fileDB("chat-memory.db").transactionEnable().make();
+        private final Map<String, String> map = db.hashMap("messages", STRING, STRING).createOrOpen();
+
+        @Override
+        public List<ChatMessage> getMessages(Object memoryId) {
+            String json = map.get((String) memoryId);
+            return messagesFromJson(json);
+        }
+
+        @Override
+        public void updateMessages(Object memoryId, List<ChatMessage> messages) {
+            String json = messagesToJson(messages);
+            map.put((String) memoryId, json);
+            db.commit();
+        }
+
+        @Override
+        public void deleteMessages(Object memoryId) {
+            map.remove((String) memoryId);
+            db.commit();
+        }
+        public static void exit(){
+            db.close();
+        }
+    }

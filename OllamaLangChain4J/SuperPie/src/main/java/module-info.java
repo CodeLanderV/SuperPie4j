@@ -7,7 +7,10 @@ module com.superpie.superpie {
     requires com.github.dockerjava.transport.zerodep;
     requires langchain4j;
     requires com.fasterxml.jackson.databind;
-    requires mapdb;  // Required for JDK HTTP Client
+    requires mapdb;
+    requires com.google.gson;
+    requires com.google.common;
+    requires java.desktop;  // Required for JDK HTTP Client
 
 
     opens com.superpie.superpie to javafx.fxml;

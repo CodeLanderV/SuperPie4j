@@ -11,8 +11,9 @@ import dev.langchain4j.data.message.UserMessage;
 
 import java.io.IOException;
 
-import java.io.InputStream;
-import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Base64;
 /*
 MAIN FOCUS: IMPLEMENTATION OF EXTREMELY EXTREMELY LOW LEVEL BASIC MULTIMODAL(images only) CHAT APP WITH NO MEMORY.
@@ -45,12 +46,22 @@ class SuperPie_CLI2{
 
 }
 public class Ollama4JwCLI2 {
+    static ImageContent returnImageBytes(String Address, String ext) {
+        try {
+            Path path = Paths.get(Address);
+            byte[] imageBytes = Files.readAllBytes(path);
+            String base64Data = Base64.getEncoder().encodeToString(imageBytes);
+            return ImageContent.from(base64Data, "image/" + ext);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
 //    static ImageContent localReturnImageUserMessage(String Address) throws IOException {
 //        byte[] in = convertWithImageIO(Address);
 //        String base64Data = Base64.getEncoder().encodeToString(in);
 //        return ImageContent.from(base64Data, "image/png");
-////    }
+//   }
 //
 //    public static byte[] convertWithImageIO(String imagePath) throws IOException {
 //        BufferedImage image = ImageIO.read(new File(imagePath));
@@ -59,19 +70,18 @@ public class Ollama4JwCLI2 {
 //        return byteArrayOutputStream.toByteArray();
 //    }
 //
-    static ImageContent returnImageUserMessage(String imageUrl) {
-        try {
-            // Read image bytes from URL
-            InputStream in = new URL(imageUrl).openStream();
-            byte[] imageBytes = in.readAllBytes();
-            in.close();
-
-            String base64Data = Base64.getEncoder().encodeToString(imageBytes);
-            return ImageContent.from(base64Data, "image/jpg"); // or "image/png" depending on image type
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to fetch image: " + e.getMessage(), e);
-        }
-    }
+//    static ImageContent returnImageUserMessage(String imageUrl) {
+//        try {
+//            // Read image bytes from URL
+//            InputStream in = new URL(imageUrl).openStream();
+//            byte[] imageBytes = in.readAllBytes();
+//            in.close();
+//            String base64Data = Base64.getEncoder().encodeToString(imageBytes);
+//            return ImageContent.from(base64Data, "image/jpg"); // or "image/png" depending on image type
+//        } catch (IOException e) {
+//            throw new RuntimeException("Failed to fetch image: " + e.getMessage(), e);
+//        }
+//    }
 
     /*
     what is the difference between UserMessage AiMessage and ChatResponse ChatRequest is that
@@ -91,7 +101,7 @@ public class Ollama4JwCLI2 {
     public static void main(String[] args) throws IOException {
         UserMessage userMessage = UserMessage.from(
                 TextContent.from("Can you analyse this image for me?"),
-                returnImageUserMessage("https://i.pinimg.com/736x/f5/76/af/f576af61faea91cfe0c1e20e79006146.jpg")
+                returnImageBytes("D:\\Bunker\\OneDrive - Amrita vishwa vidyapeetham\\BaseCamp\\SuperPie4j\\SuperPie4j\\OllamaLangChain4J\\SuperPie\\src\\main\\resources\\pie.png","png")
         );
 //        ChatRequest request = ChatRequest.builder()
 //                .messages(List.of(userMessage))  // you can also add system/user messages here for context

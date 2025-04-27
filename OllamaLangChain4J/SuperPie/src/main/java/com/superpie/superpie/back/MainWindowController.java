@@ -1,8 +1,7 @@
 // File: src/main/java/com/superpie/superpie/MainWindowController.java
 
-        package com.superpie.superpie;
+        package com.superpie.superpie.back;
 
-        import com.superpie.superpie.back.Ollama4JwCLI33;
         import javafx.fxml.FXML;
         import javafx.scene.control.*;
         import javafx.scene.layout.VBox;
@@ -11,9 +10,8 @@
         import java.io.File;
         import java.util.Arrays;
         import java.util.List;
-        import com.superpie.superpie.back.*;
 
-        public class MainWindowController {
+public class MainWindowController {
             @FXML
             private Button NewChat;
             @FXML
@@ -86,7 +84,7 @@
                 UploadImage.setOnAction(e -> uploadImage());
                 UploadPDF.setOnAction(e -> uploadPdf());
                 SaveExit.setOnAction(e -> {
-                    OO.Quit();
+//                    OO.Quit();
                     stage.close();
                 });
                 // Further handlers (ShareChat, AddChatReference) can be added similarly
